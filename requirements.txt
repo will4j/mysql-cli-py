@@ -1,0 +1,4 @@
+coverage
+mysql-connector-python
+pytest
+tomli

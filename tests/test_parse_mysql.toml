@@ -1,0 +1,9 @@
+pool_name = "mypool"
+pool_size = 6
+host = "127.0.0.1"
+port = 3306
+db = "mydb"
+user = "mydb_user"
+password = "mydb_password"
+charset = "utf8mb4"
+pool_reset_session = true

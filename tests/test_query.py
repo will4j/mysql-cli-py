@@ -1,15 +1,23 @@
-from mysql_cli.client import parse_mysql_conf
+from mysql_cli import insert, select
 
 
-def test_parse_mysql_conf():
-    mysql_conf = parse_mysql_conf("test_parse_mysql.toml")
-    assert isinstance(mysql_conf, dict)
-    assert mysql_conf["pool_name"] == "mypool"
-    assert mysql_conf["pool_size"] == 6
-    assert mysql_conf["host"] == "127.0.0.1"
-    assert mysql_conf["port"] == 3306
-    assert mysql_conf["db"] == "mydb"
-    assert mysql_conf["user"] == "mydb_user"
-    assert mysql_conf["password"] == "mydb_password"
-    assert mysql_conf["charset"] == "utf8mb4"
-    assert mysql_conf["pool_reset_session"]
+def _insert_param(param: dict):
+    return tuple(param.values())
+
+
+@insert("insert into test_table (a, b, c) values (%s, %s, %s);", _insert_param)
+def insert_one(param: dict):
+    pass
+
+
+@select("select a, b, c from test_table where a = %s limit 1;")
+def select_one(id):
+    pass
+
+
+def test_insert_one():
+    insert_one({"a": 1, "b": 2, "c": 3})
+
+
+def test_select_one():
+    select_one(1)

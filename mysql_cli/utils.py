@@ -7,3 +7,7 @@ def init_from_conf_dict(mysql_conf: dict):
 
 def init_from_conf_file(mysql_conf_file):
     return MySQLWrapper.init_from_conf_file(mysql_conf_file)
+
+
+def get_connection():
+    return MySQLWrapper.get_connection()

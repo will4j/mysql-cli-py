@@ -25,6 +25,11 @@ class MySQLWrapper:
 
     @classmethod
     def init_from_conf_file(cls, mysql_conf_file):
+        """
+        mysql conf from toml file
+        :param mysql_conf_file: toml file path
+        :return:
+        """
         mysql_conf = parse_mysql_conf(mysql_conf_file)
         return cls(MySQLConnectionPool(**mysql_conf))
 

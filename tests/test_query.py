@@ -34,7 +34,7 @@ def insert_with_dict(param: dict):
 
 @Insert("insert into my_test (name, cnt) values (%s, %s);")
 def insert_with_param(name, cnt):
-    pass
+    return name, cnt
 
 
 @BatchInsert("insert into my_test (name, cnt) values (%s, %s);")
@@ -49,12 +49,12 @@ def select_one_return_tuple(name):
 
 @Select("select id, name, cnt from my_test where name = %s limit 1;")
 def select_one_return_dict(name):
-    pass
+    return name
 
 
 @SelectMany("select name, cnt from my_test where name = %s and cnt >= %s order by cnt desc;")
 def select_many(name, cnt):
-    pass
+    return name, cnt
 
 
 @Update("update my_test set cnt = %s where name = %s;")
@@ -62,9 +62,9 @@ def update(name, cnt):
     return cnt, name
 
 
-@Delete("delete from my_test where name = %s limit 1;")
-def delete_one(name):
-    pass
+@Delete("delete from my_test where name = %s;")
+def delete(name):
+    return name
 
 
 def test_batch_insert():
@@ -97,5 +97,5 @@ def test_delete():
     insert_with_param("to_delete", 1)
     insert_with_param("to_delete", 2)
 
-    assert delete_one("to_delete") == 1
-    assert select_one_return_dict("to_delete")["cnt"] == 2
+    assert delete("to_delete") == 2
+    assert select_one_return_dict("to_delete") is None

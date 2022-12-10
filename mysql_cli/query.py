@@ -65,7 +65,8 @@ class _BaseQuery:
 def _convert_tuple_row_to_dict(column_names, tuple_row):
     # convert tuple to dict with column names
     # https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-column-names.html
-    return dict(zip(column_names, tuple_row))
+    if tuple_row:
+        return dict(zip(column_names, tuple_row))
 
 
 class Insert(_BaseQuery):

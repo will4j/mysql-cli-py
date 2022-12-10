@@ -1,7 +1,7 @@
 import os
 
 import mysql_cli
-from mysql_cli import BatchInsert, Insert, Select, SelectMany, Update
+from mysql_cli import BatchInsert, Delete, Insert, Select, SelectMany, Update
 
 TESTS_PATH = os.path.dirname(__file__)
 
@@ -70,6 +70,11 @@ def update(cnt, name):
     pass
 
 
+@Delete("delete from my_test where name = %s limit 1;")
+def delete_one(name):
+    pass
+
+
 def test_batch_insert():
     params = [{"name": "world", "cnt": 1}, {"name": "world", "cnt": 2}, {"name": "world", "cnt": 3}]
     # todo why -3 ?
@@ -94,3 +99,11 @@ def test_select_many():
 def test_update():
     assert update(1, "hello") == 2
     assert select_one_return_dict("hello")["cnt"] == 1
+
+
+def test_delete():
+    insert_with_param("to_delete", 1)
+    insert_with_param("to_delete", 2)
+
+    assert delete_one("to_delete") == 1
+    assert select_one_return_dict("to_delete")["cnt"] == 2

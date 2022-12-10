@@ -1,5 +1,6 @@
 from mysql_cli.query import (
     BatchInsert,
+    Delete,
     Insert,
     Select,
     SelectMany,

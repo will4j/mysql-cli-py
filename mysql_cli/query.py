@@ -140,3 +140,14 @@ class Update(_BaseQuery):
         values = self.parse_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         return cur.rowcount
+
+
+class Delete(_BaseQuery):
+    """Execute delete sql and return affected row numbers
+
+    """
+
+    def execute_sql(self, cnx, cur, *args, **kwargs):
+        values = self.parse_sql_params(*args, **kwargs)
+        cur.execute(self.sql, values)
+        return cur.rowcount

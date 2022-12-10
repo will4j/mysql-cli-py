@@ -73,22 +73,40 @@ class Insert(_BaseQuery):
 
 
 class Select(_BaseQuery):
-    """Execute select sql and return one row as dict.
+    """Execute select sql and return one row.
+
+    """
+
+    def __init__(self, sql, param_converter=None, dictionary=True):
+        """Init base decorator.
+
+        :param sql: sql statement to execute
+        :param param_converter: param_converter
+        :param dictionary: rows are returned as dictionary instead of tuple
+        """
+        super().__init__(sql, param_converter)
+        self.dictionary = dictionary
+
+    def execute_sql(self, cnx, cur, *args, **kwargs):
+        values = self.parse_sql_params(*args, **kwargs)
+        cur.execute(self.sql, values)
+        tuple_row = cur.fetchone()
+        if self.dictionary:
+            return _convert_tuple_row_to_dict(cur.column_names, tuple_row)
+        else:
+            return tuple_row
+
+
+class SelectMany(Select):
+    """Execute select sql and return many rows.
 
     """
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
         values = self.parse_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
-        tuple_row = cur.fetchone()
-        return _convert_tuple_row_to_dict(cur.column_names, tuple_row)
-
-
-class SelectMany(_BaseQuery):
-
-    def execute_sql(self, cnx, cur, *args, **kwargs):
-        values = self.parse_sql_params(*args, **kwargs)
-        cur.execute(self.sql, values)
         tuple_rows = cur.fetchall()
-
-        return [_convert_tuple_row_to_dict(cur.column_names, row) for row in tuple_rows]
+        if self.dictionary:
+            return [_convert_tuple_row_to_dict(cur.column_names, row) for row in tuple_rows]
+        else:
+            return tuple_rows

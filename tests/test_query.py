@@ -41,8 +41,13 @@ def insert_with_param(name, cnt):
     pass
 
 
+@Select("select id, name, cnt from my_test where name = %s limit 1;", dictionary=False)
+def select_one_return_tuple(name):
+    pass
+
+
 @Select("select id, name, cnt from my_test where name = %s limit 1;")
-def select_one(name):
+def select_one_return_dict(name):
     pass
 
 
@@ -52,7 +57,9 @@ def select_many(name, cnt):
 
 
 def test_select_one():
-    row = select_one("hello")
+    row = select_one_return_tuple("hello")
+    assert row == (1, 'hello', 2)
+    row = select_one_return_dict("hello")
     assert row == {'id': 1, 'name': 'hello', 'cnt': 2}
 
 

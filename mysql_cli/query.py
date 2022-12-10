@@ -7,14 +7,12 @@ import mysql_cli
 
 
 class _BaseQuery:
-    def __init__(self, sql, param_converter=None):
+    def __init__(self, sql):
         """Init base decorator.
 
         :param sql: sql statement to execute
-        :param param_converter: param_converter
         """
         self.sql = sql
-        self.param_converter = param_converter
 
     @abstractmethod
     def execute_sql(self, cnx, cur, *args, **kwargs):
@@ -30,6 +28,8 @@ class _BaseQuery:
         raise NotImplementedError("implement execute_sql method in subclass.")
 
     def __call__(self, func):
+        self.func = func
+
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
             with mysql_cli.get_connection() as cnx:
@@ -41,19 +41,24 @@ class _BaseQuery:
     def parse_sql_params(self, *args, **kwargs):
         """Convert func param to sql param.
 
-        1. call param_converter which expect to return params in tuple if exists
+        1. try use wrapped func 's return value if not None, else use args
         2. if args not instance of tuple, make a single value tuple, like (1,)
         3. if args is tuple itself, then use it directly
         :param args: function call args
         :param kwargs: function call kwargs
         :return: params tuple
         """
-        if self.param_converter is not None:
-            values = self.param_converter(*args, **kwargs)
-        elif not isinstance(args, tuple):
-            values = (args,)
+        def make_tuple(param):
+            if not isinstance(param, tuple):
+                return param,
+            else:
+                return param
+
+        returned_param = self.func(*args, **kwargs)
+        if returned_param is not None:
+            values = make_tuple(returned_param)
         else:
-            values = args
+            values = make_tuple(args)
         return values
 
 
@@ -85,7 +90,7 @@ class BatchInsert(Insert):
             cnx.start_transaction()
             cur.executemany(self.sql, values)
             cnx.commit()
-        except mysql.connector.Error:
+        except mysql.connector.Error as e:
             cnx.rollback()
 
         return cur.rowcount
@@ -96,14 +101,13 @@ class Select(_BaseQuery):
 
     """
 
-    def __init__(self, sql, param_converter=None, dictionary=True):
+    def __init__(self, sql, dictionary=True):
         """Init base decorator.
 
         :param sql: sql statement to execute
-        :param param_converter: param_converter
         :param dictionary: rows are returned as dictionary instead of tuple
         """
-        super().__init__(sql, param_converter)
+        super().__init__(sql)
         self.dictionary = dictionary
 
     def execute_sql(self, cnx, cur, *args, **kwargs):

@@ -27,17 +27,9 @@ def setup():
             assert insert_with_param("hello", 3) == 2
 
 
-def _insert_param(param: dict):
-    return param["name"], param["cnt"]
-
-
-def _batch_insert_param(params):
-    return (_insert_param(row) for row in params)
-
-
-@Insert("insert into my_test (name, cnt) values (%s, %s);", _insert_param)
+@Insert("insert into my_test (name, cnt) values (%s, %s);")
 def insert_with_dict(param: dict):
-    pass
+    return param["name"], param["cnt"]
 
 
 @Insert("insert into my_test (name, cnt) values (%s, %s);")
@@ -45,14 +37,14 @@ def insert_with_param(name, cnt):
     pass
 
 
-@BatchInsert("insert into my_test (name, cnt) values (%s, %s);", _batch_insert_param)
+@BatchInsert("insert into my_test (name, cnt) values (%s, %s);")
 def batch_insert(params):
-    pass
+    return tuple((row["name"], row["cnt"]) for row in params)
 
 
 @Select("select id, name, cnt from my_test where name = %s limit 1;", dictionary=False)
 def select_one_return_tuple(name):
-    pass
+    return name
 
 
 @Select("select id, name, cnt from my_test where name = %s limit 1;")
@@ -66,8 +58,8 @@ def select_many(name, cnt):
 
 
 @Update("update my_test set cnt = %s where name = %s;")
-def update(cnt, name):
-    pass
+def update(name, cnt):
+    return cnt, name
 
 
 @Delete("delete from my_test where name = %s limit 1;")
@@ -97,7 +89,7 @@ def test_select_many():
 
 
 def test_update():
-    assert update(1, "hello") == 2
+    assert update("hello", 1) == 2
     assert select_one_return_dict("hello")["cnt"] == 1
 
 

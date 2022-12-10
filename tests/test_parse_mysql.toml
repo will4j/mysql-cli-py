@@ -5,5 +5,5 @@ port = 3306
 db = "mydb"
 user = "mydb_user"
 password = "mydb_password"
-charset = "utf8mb4"
+charset = "utf8"
 pool_reset_session = true

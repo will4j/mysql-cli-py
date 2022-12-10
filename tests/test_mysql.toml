@@ -1,0 +1,11 @@
+# https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html
+host = "127.0.0.1"
+port = 3306
+db = "my_db"
+user = "root"
+charset = "utf8mb4"
+collation = "utf8mb4_general_ci"
+pool_name = "my_pool"
+pool_size = 7
+autocommit = true
+use_pure = false

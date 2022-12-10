@@ -25,5 +25,5 @@ def test_parse_mysql_conf():
     assert mysql_conf["db"] == "mydb"
     assert mysql_conf["user"] == "mydb_user"
     assert mysql_conf["password"] == "mydb_password"
-    assert mysql_conf["charset"] == "utf8mb4"
+    assert mysql_conf["charset"] == "utf8"
     assert mysql_conf["pool_reset_session"]

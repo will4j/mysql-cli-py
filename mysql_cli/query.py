@@ -1,13 +1,11 @@
 import functools
 
-from mysql.connector.cursor import MySQLCursorPrepared
-
 import mysql_cli
 
 
 def insert(sql, param_converter=None):
     """
-    execute insert sql
+    insert data into table
 
     :param sql: insert sql
     :param param_converter: convert to param tuple
@@ -20,7 +18,7 @@ def insert(sql, param_converter=None):
             values = _parse_sql_params(param_converter, *args, **kwargs)
 
             with mysql_cli.get_connection() as cnx:
-                with cnx.cursor(cursor_class=MySQLCursorPrepared) as cur:
+                with cnx.cursor(prepared=True) as cur:
                     cur.execute(sql, values)
                     return cur.lastrowid
 
@@ -30,13 +28,20 @@ def insert(sql, param_converter=None):
 
 
 def select(sql, param_converter=None):
+    """
+    select one data from table
+
+    :param sql:
+    :param param_converter:
+    :return:
+    """
     def decorator_select(func):
         @functools.wraps(func)
         def wrapper_select(*args, **kwargs):
             values = _parse_sql_params(param_converter, *args, **kwargs)
 
             with mysql_cli.get_connection() as cnx:
-                with cnx.cursor(cursor_class=MySQLCursorPrepared) as cur:
+                with cnx.cursor(prepared=True) as cur:
                     cur.execute(sql, values)
                     return cur.fetchone()
 

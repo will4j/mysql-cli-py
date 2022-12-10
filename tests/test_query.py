@@ -1,7 +1,7 @@
 import os
 
 import mysql_cli
-from mysql_cli import Insert, Select, SelectMany
+from mysql_cli import BatchInsert, Insert, Select, SelectMany
 
 TESTS_PATH = os.path.dirname(__file__)
 
@@ -31,6 +31,10 @@ def _insert_param(param: dict):
     return param["name"], param["cnt"]
 
 
+def _batch_insert_param(params):
+    return (_insert_param(row) for row in params)
+
+
 @Insert("insert into my_test (name, cnt) values (%s, %s);", _insert_param)
 def insert_with_dict(param: dict):
     pass
@@ -38,6 +42,11 @@ def insert_with_dict(param: dict):
 
 @Insert("insert into my_test (name, cnt) values (%s, %s);")
 def insert_with_param(name, cnt):
+    pass
+
+
+@BatchInsert("insert into my_test (name, cnt) values (%s, %s);", _batch_insert_param)
+def batch_insert(params):
     pass
 
 
@@ -54,6 +63,12 @@ def select_one_return_dict(name):
 @SelectMany("select name, cnt from my_test where name = %s and cnt >= %s order by cnt desc;")
 def select_many(name, cnt):
     pass
+
+
+def test_batch_insert():
+    params = [{"name": "world", "cnt": 1}, {"name": "world", "cnt": 2}, {"name": "world", "cnt": 3}]
+    # todo why -3 ?
+    assert batch_insert(params) == -3
 
 
 def test_select_one():

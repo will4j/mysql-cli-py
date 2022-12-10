@@ -7,5 +7,6 @@ charset = "utf8mb4"
 collation = "utf8mb4_general_ci"
 pool_name = "my_pool"
 pool_size = 7
+# Important, for default is not do autocommit
 autocommit = true
 use_pure = false

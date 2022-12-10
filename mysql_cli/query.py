@@ -1,6 +1,8 @@
 import functools
 from abc import abstractmethod
 
+import mysql.connector
+
 import mysql_cli
 
 
@@ -70,6 +72,23 @@ class Insert(_BaseQuery):
         values = self.parse_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         return cur.lastrowid
+
+
+class BatchInsert(Insert):
+    """Execute insert sql with many row and return affected row numbers
+
+    """
+
+    def execute_sql(self, cnx, cur, *args, **kwargs):
+        values = self.parse_sql_params(*args, **kwargs)
+        try:
+            cnx.start_transaction()
+            cur.executemany(self.sql, values)
+            cnx.commit()
+        except mysql.connector.Error:
+            cnx.rollback()
+
+        return cur.rowcount
 
 
 class Select(_BaseQuery):

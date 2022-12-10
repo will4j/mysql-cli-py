@@ -1,7 +1,7 @@
 import os
 
 import mysql_cli
-from mysql_cli import insert, select
+from mysql_cli import Insert, Select
 
 TESTS_PATH = os.path.dirname(__file__)
 
@@ -23,26 +23,29 @@ def setup():
             )
             cur.execute(stmt_create)
 
+            assert insert_with_dict({"name": "hello", "cnt": 2}) == 1
+            assert insert_with_param("hello", 3) == 2
+
 
 def _insert_param(param: dict):
     return param["name"], param["cnt"]
 
 
-@insert("insert into my_test (name, cnt) values (%s, %s);", _insert_param)
-def insert_one(param: dict):
+@Insert("insert into my_test (name, cnt) values (%s, %s);", _insert_param)
+def insert_with_dict(param: dict):
     pass
 
 
-@select("select id, name, cnt from my_test where name = %s limit 1;")
+@Insert("insert into my_test (name, cnt) values (%s, %s);")
+def insert_with_param(name, cnt):
+    pass
+
+
+@Select("select id, name, cnt from my_test where name = %s limit 1;")
 def select_one(name):
     pass
 
 
-def test_insert_one():
-    assert insert_one({"name": "hello", "cnt": 2}) == 1
-    assert insert_one({"name": "hello", "cnt": 2}) == 2
-
-
 def test_select_one():
     row = select_one("hello")
-    assert row == (1, "hello", 2)
+    assert row == {'id': 1, 'name': 'hello', 'cnt': 2}

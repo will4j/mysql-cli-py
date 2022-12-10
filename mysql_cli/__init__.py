@@ -1,10 +1,10 @@
 from mysql_cli.query import (
-    insert,
-    select,
+    Insert,
+    Select,
 )
 
 from mysql_cli.utils import (
+    get_connection,
     init_from_conf_dict,
     init_from_conf_file,
-    get_connection,
 )

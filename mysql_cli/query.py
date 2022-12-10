@@ -14,24 +14,6 @@ class _BaseQuery:
         self.sql = sql
         self.param_converter = param_converter
 
-    def parse_sql_params(self, *args, **kwargs):
-        """Convert func param to sql param.
-
-        1. call param_converter which expect to return params in tuple if exists
-        2. if args not instance of tuple, make a single value tuple, like (1,)
-        3. if args is tuple itself, then use it directly
-        :param args: function call args
-        :param kwargs: function call kwargs
-        :return: params tuple
-        """
-        if self.param_converter is not None:
-            values = self.param_converter(*args, **kwargs)
-        elif not isinstance(args, tuple):
-            values = (args,)
-        else:
-            values = args
-        return values
-
     @abstractmethod
     def execute_sql(self, cnx, cur, *args, **kwargs):
         """Implement how to deal with sql.
@@ -54,8 +36,35 @@ class _BaseQuery:
 
         return wrapped
 
+    def parse_sql_params(self, *args, **kwargs):
+        """Convert func param to sql param.
+
+        1. call param_converter which expect to return params in tuple if exists
+        2. if args not instance of tuple, make a single value tuple, like (1,)
+        3. if args is tuple itself, then use it directly
+        :param args: function call args
+        :param kwargs: function call kwargs
+        :return: params tuple
+        """
+        if self.param_converter is not None:
+            values = self.param_converter(*args, **kwargs)
+        elif not isinstance(args, tuple):
+            values = (args,)
+        else:
+            values = args
+        return values
+
+
+def _convert_tuple_row_to_dict(column_names, tuple_row):
+    # convert tuple to dict with column names
+    # https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-column-names.html
+    return dict(zip(column_names, tuple_row))
+
 
 class Insert(_BaseQuery):
+    """Execute insert sql with one row and return autoincrement id
+
+    """
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
         values = self.parse_sql_params(*args, **kwargs)
@@ -64,10 +73,22 @@ class Insert(_BaseQuery):
 
 
 class Select(_BaseQuery):
+    """Execute select sql and return one row as dict.
+
+    """
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
         values = self.parse_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         tuple_row = cur.fetchone()
-        # convert tuple to dict with column names
-        return dict(zip(cur.column_names, tuple_row))
+        return _convert_tuple_row_to_dict(cur.column_names, tuple_row)
+
+
+class SelectMany(_BaseQuery):
+
+    def execute_sql(self, cnx, cur, *args, **kwargs):
+        values = self.parse_sql_params(*args, **kwargs)
+        cur.execute(self.sql, values)
+        tuple_rows = cur.fetchall()
+
+        return [_convert_tuple_row_to_dict(cur.column_names, row) for row in tuple_rows]

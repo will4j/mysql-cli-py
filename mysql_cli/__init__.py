@@ -1,6 +1,7 @@
 from mysql_cli.query import (
     Insert,
     Select,
+    SelectMany,
 )
 
 from mysql_cli.utils import (

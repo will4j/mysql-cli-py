@@ -1,7 +1,7 @@
 import os
 
 import mysql_cli
-from mysql_cli import Insert, Select
+from mysql_cli import Insert, Select, SelectMany
 
 TESTS_PATH = os.path.dirname(__file__)
 
@@ -46,6 +46,19 @@ def select_one(name):
     pass
 
 
+@SelectMany("select name, cnt from my_test where name = %s and cnt >= %s order by cnt desc;")
+def select_many(name, cnt):
+    pass
+
+
 def test_select_one():
     row = select_one("hello")
     assert row == {'id': 1, 'name': 'hello', 'cnt': 2}
+
+
+def test_select_many():
+    rows = select_many("hello", 1)
+    assert len(rows) == 2
+    assert rows[0]["cnt"] == 3
+    assert rows[1]["name"] == "hello"
+    assert "id" not in rows[0]

@@ -129,3 +129,14 @@ class SelectMany(Select):
             return [_convert_tuple_row_to_dict(cur.column_names, row) for row in tuple_rows]
         else:
             return tuple_rows
+
+
+class Update(_BaseQuery):
+    """Execute update sql and return affected row numbers
+
+    """
+
+    def execute_sql(self, cnx, cur, *args, **kwargs):
+        values = self.parse_sql_params(*args, **kwargs)
+        cur.execute(self.sql, values)
+        return cur.rowcount

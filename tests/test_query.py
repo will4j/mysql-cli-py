@@ -1,7 +1,7 @@
 import os
 
 import mysql_cli
-from mysql_cli import BatchInsert, Insert, Select, SelectMany
+from mysql_cli import BatchInsert, Insert, Select, SelectMany, Update
 
 TESTS_PATH = os.path.dirname(__file__)
 
@@ -65,6 +65,11 @@ def select_many(name, cnt):
     pass
 
 
+@Update("update my_test set cnt = %s where name = %s;")
+def update(cnt, name):
+    pass
+
+
 def test_batch_insert():
     params = [{"name": "world", "cnt": 1}, {"name": "world", "cnt": 2}, {"name": "world", "cnt": 3}]
     # todo why -3 ?
@@ -84,3 +89,8 @@ def test_select_many():
     assert rows[0]["cnt"] == 3
     assert rows[1]["name"] == "hello"
     assert "id" not in rows[0]
+
+
+def test_update():
+    assert update(1, "hello") == 2
+    assert select_one_return_dict("hello")["cnt"] == 1

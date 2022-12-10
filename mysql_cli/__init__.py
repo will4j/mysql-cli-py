@@ -3,6 +3,7 @@ from mysql_cli.query import (
     Insert,
     Select,
     SelectMany,
+    Update,
 )
 
 from mysql_cli.utils import (

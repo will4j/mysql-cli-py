@@ -53,6 +53,11 @@ def select_one_return_dict(name):
     return name
 
 
+@Select("select id, name, cnt from my_test where id = 1 limit 1;")
+def select_without_param():
+    pass
+
+
 @SelectMany("select name, cnt from my_test where name = ? and cnt >= ? order by cnt desc;")
 def select_many_by_name(name, cnt):
     return name, cnt
@@ -78,6 +83,7 @@ def test_select_one():
     assert row == (1, 'hello', 2)
     row = select_one_return_dict("hello")
     assert row == {'id': 1, 'name': 'hello', 'cnt': 2}
+    assert select_without_param()["id"] == 1
 
 
 def test_select_many():

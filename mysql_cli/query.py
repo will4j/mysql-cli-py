@@ -156,6 +156,7 @@ class BatchInsert(Insert):
     def execute_sql(self, cnx, cur, *args, **kwargs):
         values = self.parse_sql_params(*args, **kwargs)
         cur.executemany(self.sql, values)
+        # https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-rowcount.html
         return cur.rowcount
 
 

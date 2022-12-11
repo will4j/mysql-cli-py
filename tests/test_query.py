@@ -70,8 +70,7 @@ def delete_by_name(name, limit=10):
 
 def test_batch_insert():
     params = [{"name": "world", "cnt": 1}, {"name": "world", "cnt": 2}, {"name": "world", "cnt": 3}]
-    # todo why -3 ?
-    assert batch_insert(params) == -3
+    assert batch_insert(params) == 3
 
 
 def test_select_one():

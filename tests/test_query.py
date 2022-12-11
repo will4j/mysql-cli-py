@@ -145,7 +145,7 @@ def test_transaction_rollback():
     except RuntimeError:
         pass
     assert "tx_cnx" not in thread_local.__dict__
-    assert select_one_return_dict("with_transaction") is None
+    assert select_one_return_dict("tx_rollback") is None
 
 
 @Transactional

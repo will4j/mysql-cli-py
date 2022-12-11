@@ -4,6 +4,7 @@ from mysql_cli.query import (
     Insert,
     Select,
     SelectMany,
+    Transactional,
     Update,
 )
 

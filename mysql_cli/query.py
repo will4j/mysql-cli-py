@@ -1,9 +1,71 @@
 import functools
+import threading
+import types
 from abc import abstractmethod
 
-import mysql.connector
-
 import mysql_cli
+
+thread_local = threading.local()
+
+
+class Transactional:
+    def __init__(self, func):
+        functools.update_wrapper(self, func)
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        return self.execute_in_wrapper(*args, **kwargs)
+
+    def __get__(self, instance, cls):
+        if instance is None:
+            return self
+        else:
+            return types.MethodType(self, instance)
+
+    def execute_in_wrapper(self, *args, **kwargs):
+        tx_cnx, _ = _get_tx_cnx_and_cur(create=True)
+        if not tx_cnx.in_transaction:
+            # new transaction on top level, control commit and rollback
+            try:
+                tx_cnx.start_transaction()
+                result = self.func(*args, **kwargs)
+                tx_cnx.commit()
+                return result
+            except:
+                tx_cnx.rollback()
+                raise
+            finally:
+                # clear thread local connection status
+                _clear_tx_status()
+        else:
+            # already in transaction
+            return self.func(*args, **kwargs)
+
+
+def _get_tx_cnx_and_cur(create=True):
+    tx_cnx = thread_local.__dict__.get("tx_cnx")
+    if not tx_cnx and create:
+        tx_cnx = mysql_cli.get_connection()
+        thread_local.tx_cnx = tx_cnx
+
+    tx_cur = thread_local.__dict__.get("tx_cur")
+    if not tx_cur and create:
+        tx_cur = tx_cnx.cursor(prepared=True)
+        thread_local.tx_cur = tx_cur
+
+    return tx_cnx, tx_cur
+
+
+def _clear_tx_status():
+    tx_cur = thread_local.__dict__.get("tx_cur")
+    if tx_cur:
+        tx_cur.close()
+        del thread_local.tx_cur
+
+    tx_cnx = thread_local.__dict__.get("tx_cnx")
+    if tx_cnx:
+        tx_cnx.close()
+        del thread_local.tx_cnx
 
 
 class _BaseQuery:
@@ -32,11 +94,19 @@ class _BaseQuery:
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
+            return self.execute_in_wrapper(*args, **kwargs)
+
+        return wrapped
+
+    def execute_in_wrapper(self, *args, **kwargs):
+        tx_cnx, tx_cur = _get_tx_cnx_and_cur(create=False)
+        if tx_cnx and tx_cur:
+            # use shared thread local connection
+            return self.execute_sql(tx_cnx, tx_cur, *args, **kwargs)
+        else:
             with mysql_cli.get_connection() as cnx:
                 with cnx.cursor(prepared=True) as cur:
                     return self.execute_sql(cnx, cur, *args, **kwargs)
-
-        return wrapped
 
     def parse_sql_params(self, *args, **kwargs):
         """Convert func param to sql param.
@@ -48,6 +118,7 @@ class _BaseQuery:
         :param kwargs: function call kwargs
         :return: params tuple
         """
+
         def make_tuple(param):
             if not isinstance(param, tuple):
                 return param,
@@ -60,13 +131,6 @@ class _BaseQuery:
         else:
             values = make_tuple(args)
         return values
-
-
-def _convert_tuple_row_to_dict(column_names, tuple_row):
-    # convert tuple to dict with column names
-    # https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-column-names.html
-    if tuple_row:
-        return dict(zip(column_names, tuple_row))
 
 
 class Insert(_BaseQuery):
@@ -85,15 +149,13 @@ class BatchInsert(Insert):
 
     """
 
+    @Transactional
+    def execute_in_wrapper(self, *args, **kwargs):
+        return super().execute_in_wrapper(*args, **kwargs)
+
     def execute_sql(self, cnx, cur, *args, **kwargs):
         values = self.parse_sql_params(*args, **kwargs)
-        try:
-            cnx.start_transaction()
-            cur.executemany(self.sql, values)
-            cnx.commit()
-        except mysql.connector.Error as e:
-            cnx.rollback()
-
+        cur.executemany(self.sql, values)
         return cur.rowcount
 
 
@@ -104,7 +166,6 @@ class Select(_BaseQuery):
 
     def __init__(self, sql, dictionary=True):
         """Init base decorator.
-
         :param sql: sql statement to execute
         :param dictionary: rows are returned as dictionary instead of tuple
         """
@@ -134,6 +195,13 @@ class SelectMany(Select):
             return [_convert_tuple_row_to_dict(cur.column_names, row) for row in tuple_rows]
         else:
             return tuple_rows
+
+
+def _convert_tuple_row_to_dict(column_names, tuple_row):
+    # convert tuple to dict with column names
+    # https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-column-names.html
+    if tuple_row:
+        return dict(zip(column_names, tuple_row))
 
 
 class Update(_BaseQuery):

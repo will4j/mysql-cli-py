@@ -1,7 +1,8 @@
 import os
 
 import mysql_cli
-from mysql_cli import BatchInsert, Delete, Insert, Select, SelectMany, Update
+from mysql_cli import BatchInsert, Delete, Insert, Select, SelectMany, Transactional, Update
+from mysql_cli.query import thread_local
 
 TESTS_PATH = os.path.dirname(__file__)
 
@@ -27,44 +28,44 @@ def setup():
             assert insert_with_param("hello", 3) == 2
 
 
-@Insert("insert into my_test (name, cnt) values (%s, %s);")
+@Insert("insert into my_test (name, cnt) values (?, ?);")
 def insert_with_dict(param: dict):
     return param["name"], param["cnt"]
 
 
-@Insert("insert into my_test (name, cnt) values (%s, %s);")
+@Insert("insert into my_test (name, cnt) values (?, ?);")
 def insert_with_param(name, cnt):
     return name, cnt
 
 
-@BatchInsert("insert into my_test (name, cnt) values (%s, %s);")
+@BatchInsert("insert into my_test (name, cnt) values (?, ?);")
 def batch_insert(params):
     return tuple((row["name"], row["cnt"]) for row in params)
 
 
-@Select("select id, name, cnt from my_test where name = %s limit 1;", dictionary=False)
+@Select("select id, name, cnt from my_test where name = ? limit 1;", dictionary=False)
 def select_one_return_tuple(name):
     return name
 
 
-@Select("select id, name, cnt from my_test where name = %s limit 1;")
+@Select("select id, name, cnt from my_test where name = ? limit 1;")
 def select_one_return_dict(name):
     return name
 
 
-@SelectMany("select name, cnt from my_test where name = %s and cnt >= %s order by cnt desc;")
-def select_many(name, cnt):
+@SelectMany("select name, cnt from my_test where name = ? and cnt >= ? order by cnt desc;")
+def select_many_by_name(name, cnt):
     return name, cnt
 
 
-@Update("update my_test set cnt = %s where name = %s;")
-def update(name, cnt):
-    return cnt, name
+@Update("update my_test set cnt = ? where name = ? limit ?;")
+def update_cnt_by_name(name, cnt, limit=10):
+    return cnt, name, limit
 
 
-@Delete("delete from my_test where name = %s;")
-def delete(name):
-    return name
+@Delete("delete from my_test where name = ? limit ?;")
+def delete_by_name(name, limit=10):
+    return name, limit
 
 
 def test_batch_insert():
@@ -81,21 +82,77 @@ def test_select_one():
 
 
 def test_select_many():
-    rows = select_many("hello", 1)
+    rows = select_many_by_name("hello", 1)
     assert len(rows) == 2
     assert rows[0]["cnt"] == 3
     assert rows[1]["name"] == "hello"
     assert "id" not in rows[0]
 
 
-def test_update():
-    assert update("hello", 1) == 2
-    assert select_one_return_dict("hello")["cnt"] == 1
+def test_update_one():
+    insert_with_param("update_one", 1)
+    insert_with_param("update_one", 2)
+    insert_with_param("update_one", 3)
+
+    assert update_cnt_by_name("update_one", 0, 1) == 1
+    assert len(select_many_by_name("update_one", 1)) == 2
 
 
-def test_delete():
-    insert_with_param("to_delete", 1)
-    insert_with_param("to_delete", 2)
+def test_update_many():
+    insert_with_param("update_many", 1)
+    insert_with_param("update_many", 2)
+    insert_with_param("update_many", 3)
 
-    assert delete("to_delete") == 2
-    assert select_one_return_dict("to_delete") is None
+    assert update_cnt_by_name("update_many", 0) == 3
+    assert select_many_by_name("update_many", 1) == []
+
+
+def test_delete_one():
+    insert_with_param("delete_one", 1)
+    insert_with_param("delete_one", 2)
+
+    assert delete_by_name("delete_one", 1) == 1
+    assert select_one_return_dict("delete_one")["cnt"] == 2
+
+
+def test_delete_many():
+    insert_with_param("delete_many", 1)
+    insert_with_param("delete_many", 2)
+
+    assert delete_by_name("delete_many") == 2
+    assert select_one_return_dict("delete_many") is None
+
+
+@Transactional
+def transaction_rollback():
+    params = [{"name": "tx_rollback", "cnt": 1}, {"name": "tx_rollback", "cnt": 2}]
+    batch_insert(params)
+
+    assert select_one_return_dict("tx_rollback")["name"] == "tx_rollback"
+    update_cnt_by_name("tx_rollback", 3)
+    assert "tx_cnx" in thread_local.__dict__
+    raise RuntimeError("rollback")
+
+
+def test_transaction_rollback():
+    try:
+        transaction_rollback()
+    except RuntimeError:
+        pass
+    assert "tx_cnx" not in thread_local.__dict__
+    assert select_one_return_dict("with_transaction") is None
+
+
+@Transactional
+def transaction_commit():
+    params = [{"name": "tx_commit", "cnt": 1}, {"name": "tx_commit", "cnt": 2}]
+    batch_insert(params)
+    update_cnt_by_name("tx_commit", 3)
+    assert "tx_cnx" in thread_local.__dict__
+
+
+def test_transaction_commit():
+    transaction_commit()
+    assert "tx_cnx" not in thread_local.__dict__
+    assert select_one_return_dict("tx_commit")["name"] == "tx_commit"
+    assert select_one_return_dict("tx_commit")["cnt"] == 3

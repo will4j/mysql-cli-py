@@ -2,6 +2,21 @@
 A MySQL python client based on [mysql-connector-python](https://github.com/mysql/mysql-connector-python), with friendly interface and full-featured client configuration.  
 Compare with the way which only takes table names and SQL parameters as input and assembles SQL statement internally, I personally prefer developer taking complete control of SQL, making it flexible which means you can use whatever SQL feature as you need, clear which means the final statement is obviously what you see in code and also no redundant part like '1=1' ever appear, also it's easier to debug and optimize as long as you can see the whole picture.
 
+## Installation
+### use pip
+```bash
+$ pip install mysql-cli
+```
+### use git repository
+```text
+# this is requirements.txt
+# git+https://gitee.com/will4j/mysql-cli-py.git@main#egg=mysql-cli
+git+https://github.com/will4j/mysql-cli-py.git@main#egg=mysql-cli 
+```
+```bash
+$ pip install -r requirements.txt
+```
+
 ## Usage
 ### Basic example
 ```python

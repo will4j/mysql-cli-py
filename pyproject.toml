@@ -1,0 +1,30 @@
+# https://packaging.python.org/en/latest/tutorials/packaging-projects/
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mysql-cli"
+version = "1.0.0"
+authors = [
+  { name="William Wang", email="williamw0825@gmail.com" },
+]
+description = "A MySQL Python Client"
+keywords = ["MySQL", "Python", "client"]
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "mysql-connector-python",
+    "tomli",
+    "pytest",
+    "coverage",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/will4j/mysql-cli-py"
+"Bug Tracker" = "https://github.com/will4j/mysql-cli-py/issues"

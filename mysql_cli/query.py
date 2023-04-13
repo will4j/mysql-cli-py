@@ -2,6 +2,7 @@ import functools
 import threading
 import types
 from abc import abstractmethod
+import re
 
 import mysql_cli
 
@@ -203,6 +204,60 @@ def _convert_tuple_row_to_dict(column_names, tuple_row):
     # https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-column-names.html
     if tuple_row:
         return dict(zip(column_names, tuple_row))
+
+class SelectManyByQueryClauses(Select):
+    """Execute select sql by query clauses(es: where,limit,offer,groupby,orderby and so on) and return many rows.
+       use ":+word" as placeholder, like ":name"
+
+       notice:
+        SELECT column1, column2, ...
+        FROM table_name
+        WHERE condition
+        GROUP BY column1, column2, ...
+        HAVING condition
+        ORDER BY column1, column2, ...
+        LIMIT start, count;
+
+    """
+
+    def execute_sql(self, cnx, cur, *args, **kwargs):
+        placeholders = re.findall(r':\w+', self.sql)  # 统计sql语句的占位符
+        params = kwargs['params']
+        if len(params) < len(placeholders):  # 简单匹配下参数个数对不对
+            return None  # 参数个数匹配不上就直接返回，TODO 加上报错
+        values = []
+        replacePh = []
+        for tmp in placeholders:
+            ph = tmp[1:]
+            if ph in params.keys():
+                if ph == "groupby" or ph == "orderby":   # groupby和orderby 不支持占位符，直接替换
+                    if isinstance(params[ph], tuple):
+                        replacePh.append(','.join(params[ph]))
+                    elif isinstance(params[ph], list):
+                        replacePh.append(','.join(params[ph]))
+                    else:
+                        replacePh.append(params[ph])
+                else:
+                    if isinstance(params[ph], tuple):
+                        replacePh.append( ', '.join(['?'] * len(params[ph])))
+                        values += list(params[ph])
+                    elif isinstance(params[ph], list):
+                        replacePh.append(', '.join(['?'] * len(params[ph])))
+                        values += params[ph]
+                    else:
+                        replacePh.append('?')
+                        values.append(params[ph])
+            else:
+                return None  # 有一个参数匹配不上就直接返回，TODO 加上报错
+        values = tuple(values)
+        for i in range(len(placeholders)):
+            self.sql = self.sql.replace(placeholders[i],replacePh[i])
+        cur.execute(self.sql, values)
+        tuple_rows = cur.fetchall()
+        if self.dictionary:
+            return [_convert_tuple_row_to_dict(cur.column_names, row) for row in tuple_rows]
+        else:
+            return tuple_rows
 
 
 class Update(_BaseQuery):

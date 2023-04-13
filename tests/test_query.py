@@ -1,7 +1,7 @@
 import os
 
 import mysql_cli
-from mysql_cli import BatchInsert, Delete, Insert, Select, SelectMany, Transactional, Update
+from mysql_cli import BatchInsert, Delete, Insert, Select, SelectMany, Transactional, Update, SelectManyByQueryClauses
 from mysql_cli.query import thread_local
 
 TESTS_PATH = os.path.dirname(__file__)
@@ -62,6 +62,26 @@ def select_without_param():
 def select_many_by_name(name, cnt):
     return name, cnt
 
+@SelectManyByQueryClauses("select * from my_test where name in (:name) and cnt > :cnt limit :limit offset :offset")
+def select_many_by_query_clauses(params: dict):
+    return params
+
+@SelectManyByQueryClauses("select * from my_test where name in (:name) and cnt in (:cnt)")
+def select_many_by_query_clauses2(params: dict):
+    return params
+
+@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby order by :orderby")
+def select_many_by_query_clauses3(params: dict):
+    return params
+
+
+@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby")
+def select_many_by_query_clauses4(params: dict):
+    return params
+
+@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby limit :limit offset :offset")
+def select_many_by_query_clauses5(params: dict):
+    return params
 
 @Update("update my_test set cnt = ? where name = ? limit ?;")
 def update_cnt_by_name(name, cnt, limit=10):
@@ -110,6 +130,66 @@ def test_update_many():
 
     assert update_cnt_by_name("update_many", 0) == 3
     assert select_many_by_name("update_many", 1) == []
+
+
+def test_select_many_by_query_clauses():
+    params = {
+        "name": ["world", "hello"],
+        "cnt": 1,
+        "limit": 3,
+        "offset": 1,
+        # "orderby": "id desc",
+        # "groupby": "name",
+    }
+    data = select_many_by_query_clauses(params=params)
+    #print(data)
+    assert len(data) == 3
+    params = {
+        "name": ["world", "hello"],
+        "cnt": [1,2]
+    }
+    data = select_many_by_query_clauses2(params=params)
+    # print(data)
+    assert len(data) == 3
+
+    params2 = {
+        "name": ["world", "hello"],
+        "cnt": 1,
+        # "limit": 3,
+        # "offset": 1,
+        "orderby": "name desc",
+        "groupby": "name",
+    }
+    data = select_many_by_query_clauses3(params=params2)
+    # print(data)
+    assert len(data) == 2
+
+    params3 = {
+        "name": ["world", "hello"],
+        "cnt": 1,
+        # "limit": 3,
+        # "offset": 1,
+        "orderby": "name desc",
+        "groupby": "name",
+        "count_n": 1,
+    }
+    data = select_many_by_query_clauses4(params=params3)
+    # print(data)
+    assert len(data) == 2
+
+    params4 = {
+        "name": ["world", "hello"],
+        "cnt": 1,
+        "limit": 1,
+        "offset": 1,
+        "orderby": "name desc",
+        "groupby": "name",
+        "count_n": 1,
+    }
+    data = select_many_by_query_clauses5(params=params4)
+    # print(data)
+    assert len(data) == 1
+
 
 
 def test_delete_one():

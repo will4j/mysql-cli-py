@@ -207,5 +207,90 @@ transaction_rollback()
 assert select_one_return_dict("tx_rollback") is None
 ```
 
+### SelectManyByQueryClauses
+`SelectManyByQueryClauses` Execute select sql by query clauses(where, limit, offer, groupby, orderby, having) and return many rows. use ":+word" as placeholder, like ":name"
+```python
+from mysql_cli import SelectManyByQueryClauses
+
+@SelectManyByQueryClauses("select * from my_test where name in (:name) and cnt > :cnt limit :limit offset :offset")
+def select_many_by_query_clauses(params: dict):
+    return params
+
+@SelectManyByQueryClauses("select * from my_test where name in (:name) and cnt in (:cnt)")
+def select_many_by_query_clauses2(params: dict):
+    return params
+
+@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby order by :orderby")
+def select_many_by_query_clauses3(params: dict):
+    return params
+
+
+@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby")
+def select_many_by_query_clauses4(params: dict):
+    return params
+
+@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby limit :limit offset :offset")
+def select_many_by_query_clauses5(params: dict):
+    return params
+
+params = {
+    "name": ["world", "hello"],
+    "cnt": 1,
+    "limit": 3,
+    "offset": 1,
+    # "orderby": "id desc",
+    # "groupby": "name",
+}
+data = select_many_by_query_clauses(params=params)
+#print(data)
+assert len(data) == 3
+params = {
+    "name": ["world", "hello"],
+    "cnt": [1,2]
+}
+data = select_many_by_query_clauses2(params=params)
+# print(data)
+assert len(data) == 3
+
+params2 = {
+    "name": ["world", "hello"],
+    "cnt": 1,
+    # "limit": 3,
+    # "offset": 1,
+    "orderby": "name desc",
+    "groupby": "name",
+}
+data = select_many_by_query_clauses3(params=params2)
+# print(data)
+assert len(data) == 2
+
+params3 = {
+    "name": ["world", "hello"],
+    "cnt": 1,
+    # "limit": 3,
+    # "offset": 1,
+    "orderby": "name desc",
+    "groupby": "name",
+    "count_n": 1,
+}
+data = select_many_by_query_clauses4(params=params3)
+# print(data)
+assert len(data) == 2
+
+params4 = {
+    "name": ["world", "hello"],
+    "cnt": 1,
+    "limit": 1,
+    "offset": 1,
+    "orderby": "name desc",
+    "groupby": "name",
+    "count_n": 1,
+}
+data = select_many_by_query_clauses5(params=params4)
+# print(data)
+assert len(data) == 1
+```
+
+
 ## References
 1. https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursorprepared.html

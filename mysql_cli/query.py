@@ -231,6 +231,9 @@ class SelectManyByQueryClauses(Select):
             ph = tmp[1:]
             if ph in params.keys():
                 if ph == "groupby" or ph == "orderby":   # groupby和orderby 不支持占位符，直接替换
+                    # 加入校验，因为无法使用占位符，不校验有SQL注入风险，判断数据只能包含大小写字母，空格，数字和下划线
+                    if not re.match(r'^[a-zA-Z0-9_ ]*$', params[ph]):
+                        return None
                     if isinstance(params[ph], tuple):
                         replacePh.append(','.join(params[ph]))
                     elif isinstance(params[ph], list):

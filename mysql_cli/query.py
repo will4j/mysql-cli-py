@@ -133,6 +133,96 @@ class _BaseQuery:
             values = make_tuple(args)
         return values
 
+    def parse_search_and_update_sql_params(self, *args, **kwargs):
+        """ 支持用":+word"的形式作为占位符，或者用问号做占位符，但不支持同时包含这两种占位符
+
+        1. try use wrapped func 's return value if not None, else use args
+        2. if args not instance of tuple, make a single value tuple, like (1,)
+        3. if args is tuple itself, then use it directly
+        :param args: function call args
+        :param kwargs: function call kwargs
+        :return: params tuple
+        """
+
+        def handle_sql_values_by_question_placeholders(params): # 处理问号占位符
+            values = []
+            new_sql = ''
+            j = 0
+            placeholder_count = self.sql.count('?')
+            if len(params) != placeholder_count:
+                return ()     # TODO 现在只是返回空内容，后续优化，加入报错
+            # 修改sql语句将每个占位符?按实参的个数扩展，并将实参拼成一个tuple
+            for i in range(placeholder_count):
+                s = 0
+                while j + s < len(self.sql) and self.sql[j + s] != '?':
+                    s += 1
+                new_sql += self.sql[j:j + s]
+                j += s + 1
+                if isinstance(params[i], tuple):
+                    values += list(params[i])
+                    new_sql += ', '.join(['?'] * len(params[i]))
+                elif isinstance(params[i], list):
+                    values += params[i]
+                    new_sql += ', '.join(['?'] * len(params[i]))
+                else:
+                    values.append(params[i])
+                    new_sql += ', '.join(['?'])
+            new_sql += self.sql[j:]
+            self.sql = new_sql
+            return tuple(values)
+        def handle_sql_values_by_word_placeholders(params,placeholders): # 处理问号占位符
+            values = []
+            if len(params) != len(placeholders):  # 简单匹配下参数个数对不对
+                return ()  # 参数个数匹配不上就直接返回，TODO 加上报错
+            replacePh = []
+            for tmp in placeholders:
+                ph = tmp[1:]
+                if ph in params.keys():
+                    if ph == "groupby" or ph == "orderby":  # groupby和orderby 不支持占位符，直接替换
+                        # 加入校验，因为无法使用占位符，不校验有SQL注入风险，判断数据只能包含大小写字母，空格，数字和下划线
+                        if not re.match(r'^[a-zA-Z0-9_ ]*$', params[ph]):
+                            return None
+                        if isinstance(params[ph], tuple):
+                            replacePh.append(','.join(params[ph]))
+                        elif isinstance(params[ph], list):
+                            replacePh.append(','.join(params[ph]))
+                        else:
+                            replacePh.append(params[ph])
+                    else:
+                        if isinstance(params[ph], tuple):
+                            replacePh.append(', '.join(['?'] * len(params[ph])))
+                            values += list(params[ph])
+                        elif isinstance(params[ph], list):
+                            replacePh.append(', '.join(['?'] * len(params[ph])))
+                            values += params[ph]
+                        else:
+                            replacePh.append('?')
+                            values.append(params[ph])
+                else:
+                    return ()  # 有一个参数匹配不上就直接返回，TODO 加上报错
+            values = tuple(values)
+            for i in range(len(placeholders)):
+                self.sql = self.sql.replace(placeholders[i], replacePh[i])
+            return values
+
+        params = self.func(*args, **kwargs)
+        placeholders = re.findall(r':\w+', self.sql)  # 统计sql语句的占位符
+
+        if len(placeholders) == 0:  # 使用问号做占位符
+            if params is None:
+                params = args
+            if not isinstance(params,tuple):
+                params = params,   # 如果不是元组，则转化成元组
+            return handle_sql_values_by_question_placeholders(params)
+        else:   # 使用":+word"的形式作为占位符
+            if '?' in self.sql:
+                raise ValueError('the sql include two different placeholers is unsupported')
+            if params is None:
+                params = kwargs['params']
+            if not isinstance(params, dict):
+                return ()   # TODO 直接返回，后续可以加上报错
+            return handle_sql_values_by_word_placeholders(params, placeholders)
+
 
 class Insert(_BaseQuery):
     """Execute insert sql with one row and return autoincrement id
@@ -175,7 +265,7 @@ class Select(_BaseQuery):
         self.dictionary = dictionary
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
-        values = self.parse_sql_params(*args, **kwargs)
+        values = self.parse_search_and_update_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         tuple_row = cur.fetchone()
         if self.dictionary:
@@ -190,7 +280,7 @@ class SelectMany(Select):
     """
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
-        values = self.parse_sql_params(*args, **kwargs)
+        values = self.parse_search_and_update_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         tuple_rows = cur.fetchall()
         if self.dictionary:
@@ -221,40 +311,7 @@ class SelectManyByQueryClauses(Select):
     """
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
-        placeholders = re.findall(r':\w+', self.sql)  # 统计sql语句的占位符
-        params = kwargs['params']
-        if len(params) < len(placeholders):  # 简单匹配下参数个数对不对
-            return None  # 参数个数匹配不上就直接返回，TODO 加上报错
-        values = []
-        replacePh = []
-        for tmp in placeholders:
-            ph = tmp[1:]
-            if ph in params.keys():
-                if ph == "groupby" or ph == "orderby":   # groupby和orderby 不支持占位符，直接替换
-                    # 加入校验，因为无法使用占位符，不校验有SQL注入风险，判断数据只能包含大小写字母，空格，数字和下划线
-                    if not re.match(r'^[a-zA-Z0-9_ ]*$', params[ph]):
-                        return None
-                    if isinstance(params[ph], tuple):
-                        replacePh.append(','.join(params[ph]))
-                    elif isinstance(params[ph], list):
-                        replacePh.append(','.join(params[ph]))
-                    else:
-                        replacePh.append(params[ph])
-                else:
-                    if isinstance(params[ph], tuple):
-                        replacePh.append( ', '.join(['?'] * len(params[ph])))
-                        values += list(params[ph])
-                    elif isinstance(params[ph], list):
-                        replacePh.append(', '.join(['?'] * len(params[ph])))
-                        values += params[ph]
-                    else:
-                        replacePh.append('?')
-                        values.append(params[ph])
-            else:
-                return None  # 有一个参数匹配不上就直接返回，TODO 加上报错
-        values = tuple(values)
-        for i in range(len(placeholders)):
-            self.sql = self.sql.replace(placeholders[i],replacePh[i])
+        values = self.parse_search_and_update_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         tuple_rows = cur.fetchall()
         if self.dictionary:
@@ -269,7 +326,7 @@ class Update(_BaseQuery):
     """
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
-        values = self.parse_sql_params(*args, **kwargs)
+        values = self.parse_search_and_update_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         return cur.rowcount
 
@@ -280,6 +337,6 @@ class Delete(_BaseQuery):
     """
 
     def execute_sql(self, cnx, cur, *args, **kwargs):
-        values = self.parse_sql_params(*args, **kwargs)
+        values = self.parse_search_and_update_sql_params(*args, **kwargs)
         cur.execute(self.sql, values)
         return cur.rowcount

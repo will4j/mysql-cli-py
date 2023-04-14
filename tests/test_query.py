@@ -48,6 +48,19 @@ def select_one_return_tuple(name):
     return name
 
 
+@Select("select id, name, cnt from my_test where name = ? and cnt in (?) limit 1;", dictionary=False)
+def select_one_by_in(name,cnt):
+    return name,cnt
+
+@Select("select id, name, cnt from my_test where name = ? and cnt in (?) limit ? offset ?;", dictionary=False)
+def select_one_by_in_more_condition(name,cnt,limit,offset):
+    return name,cnt,limit,offset
+
+@Select("select id, name, cnt from my_test where name = :name and cnt in (:cnt) limit :limit offset :offset;", dictionary=False)
+def select_one_by_word_placeholders(params: dict):
+    return params
+
+
 @Select("select id, name, cnt from my_test where name = ? limit 1;")
 def select_one_return_dict(name):
     return name
@@ -88,9 +101,26 @@ def update_cnt_by_name(name, cnt, limit=10):
     return cnt, name, limit
 
 
+@Update("update my_test set cnt = ? where name in (?) limit ?;")
+def update_cnt_by_name_and_in(name, cnt, limit=10):
+    return cnt, name, limit
+
+@Update("update my_test set cnt = :cnt where name in (:name) limit :limit;")
+def update_cnt_by_word_placeholders(params:dict):
+    return params
+
+
 @Delete("delete from my_test where name = ? limit ?;")
 def delete_by_name(name, limit=10):
     return name, limit
+
+@Delete("delete from my_test where name in (?) and cnt in (?) limit ?;")
+def delete_by_in(name, cnt, limit=10):
+    return name, cnt, limit
+
+@Delete("delete from my_test where name in (:name) and cnt = :cnt limit :limit;")
+def delete_by_word_placeholders(params:dict):
+    return params
 
 
 def test_batch_insert():
@@ -101,6 +131,21 @@ def test_batch_insert():
 def test_select_one():
     row = select_one_return_tuple("hello")
     assert row == (1, 'hello', 2)
+    row = select_one_by_in("world",[2,3])
+    assert row == (4, 'world', 2)
+
+    row = select_one_by_in_more_condition("world", [2, 3],1,1)
+    assert row == (5, 'world', 3)
+
+    params = {
+        "cnt":[2,3],
+        "name":"world",
+        "limit":1,
+        "offset":1,
+    }
+    row1 = select_one_by_word_placeholders(params=params)
+    assert row == row1
+
     row = select_one_return_dict("hello")
     assert row == {'id': 1, 'name': 'hello', 'cnt': 2}
     assert select_without_param()["id"] == 1
@@ -129,6 +174,13 @@ def test_update_many():
     insert_with_param("update_many", 3)
 
     assert update_cnt_by_name("update_many", 0) == 3
+    assert update_cnt_by_name_and_in(["update_one", "update_many"], 4, 2) == 2
+    params = {
+        "name":["update_one", "update_many"],
+        "cnt":5,
+        "limit":2,
+    }
+    assert update_cnt_by_word_placeholders(params=params) == 2
     assert select_many_by_name("update_many", 1) == []
 
 
@@ -198,6 +250,18 @@ def test_delete_one():
 
     assert delete_by_name("delete_one", 1) == 1
     assert select_one_return_dict("delete_one")["cnt"] == 2
+
+    insert_with_param("delete_one", 1)
+    insert_with_param("delete_two", 1)
+    insert_with_param("delete_two", 2)
+
+    assert delete_by_in(["delete_one"], [1,2]) == 2
+    params = {
+        "cnt":2,
+        "name":["delete_one","delete_two"],
+        "limit": 1,
+    }
+    assert delete_by_word_placeholders(params=params) == 1
 
 
 def test_delete_many():

@@ -47,6 +47,11 @@ def batch_insert(params):
 def select_one_return_tuple(name):
     return name
 
+@Select("select id, name, cnt from my_test where name = 'hello' limit 1 offset 1;", dictionary=False)
+def select_one_return_tuple_full():
+    pass
+
+
 
 @Select("select id, name, cnt from my_test where name = ? and cnt in (?) limit 1;", dictionary=False)
 def select_one_by_in(name,cnt):
@@ -131,6 +136,10 @@ def test_batch_insert():
 def test_select_one():
     row = select_one_return_tuple("hello")
     assert row == (1, 'hello', 2)
+
+    row = select_one_return_tuple_full()
+    assert row == (2, 'hello', 3)
+
     row = select_one_by_in("world",[2,3])
     assert row == (4, 'world', 2)
 

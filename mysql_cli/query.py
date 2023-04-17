@@ -295,30 +295,6 @@ def _convert_tuple_row_to_dict(column_names, tuple_row):
     if tuple_row:
         return dict(zip(column_names, tuple_row))
 
-class SelectManyByQueryClauses(Select):
-    """Execute select sql by query clauses(es: where,limit,offer,groupby,orderby and so on) and return many rows.
-       use ":+word" as placeholder, like ":name"
-
-       notice:
-        SELECT column1, column2, ...
-        FROM table_name
-        WHERE condition
-        GROUP BY column1, column2, ...
-        HAVING condition
-        ORDER BY column1, column2, ...
-        LIMIT start, count;
-
-    """
-
-    def execute_sql(self, cnx, cur, *args, **kwargs):
-        values = self.parse_search_and_update_sql_params(*args, **kwargs)
-        cur.execute(self.sql, values)
-        tuple_rows = cur.fetchall()
-        if self.dictionary:
-            return [_convert_tuple_row_to_dict(cur.column_names, row) for row in tuple_rows]
-        else:
-            return tuple_rows
-
 
 class Update(_BaseQuery):
     """Execute update sql and return affected row numbers

@@ -1,7 +1,7 @@
 import os
 
 import mysql_cli
-from mysql_cli import BatchInsert, Delete, Insert, Select, SelectMany, Transactional, Update, SelectManyByQueryClauses
+from mysql_cli import BatchInsert, Delete, Insert, Select, SelectMany, Transactional, Update
 from mysql_cli.query import thread_local
 
 TESTS_PATH = os.path.dirname(__file__)
@@ -75,24 +75,24 @@ def select_without_param():
 def select_many_by_name(name, cnt):
     return name, cnt
 
-@SelectManyByQueryClauses("select * from my_test where name in (:name) and cnt > :cnt limit :limit offset :offset")
+@SelectMany("select * from my_test where name in (:name) and cnt > :cnt limit :limit offset :offset")
 def select_many_by_query_clauses(params: dict):
     return params
 
-@SelectManyByQueryClauses("select * from my_test where name in (:name) and cnt in (:cnt)")
+@SelectMany("select * from my_test where name in (:name) and cnt in (:cnt)")
 def select_many_by_query_clauses2(params: dict):
     return params
 
-@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby order by :orderby")
+@SelectMany("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby order by :orderby")
 def select_many_by_query_clauses3(params: dict):
     return params
 
 
-@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby")
+@SelectMany("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby")
 def select_many_by_query_clauses4(params: dict):
     return params
 
-@SelectManyByQueryClauses("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby limit :limit offset :offset")
+@SelectMany("select name,count(*) from my_test where name in (:name) and cnt > :cnt group by :groupby having count(*) > :count_n order by :orderby limit :limit offset :offset")
 def select_many_by_query_clauses5(params: dict):
     return params
 

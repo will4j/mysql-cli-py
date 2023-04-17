@@ -6,7 +6,6 @@ from mysql_cli.query import (
     SelectMany,
     Transactional,
     Update,
-    SelectManyByQueryClauses,
 )
 
 from mysql_cli.utils import (

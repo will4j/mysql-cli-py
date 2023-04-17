@@ -163,9 +163,8 @@ class _BaseQuery:
                     new_sql += ', '.join(['?'] * len(params[i]))
                 else:
                     values.append(params[i])
-                    new_sql += ', '.join(['?'])
-            if len(tmp) > placeholder_count :
-                new_sql += tmp[placeholder_count]
+                    new_sql += '?'
+            new_sql += tmp[placeholder_count]
             self.sql = new_sql
             return tuple(values)
 
@@ -206,9 +205,9 @@ class _BaseQuery:
             return values
 
         return_params = self.func(*args, **kwargs)
-        placeholders = re.findall(r':\w+', self.sql)  # 统计sql语句的占位符
+        placeholders_list = re.findall(r':\w+', self.sql)  # 统计sql语句的占位符
 
-        if len(placeholders) == 0:  # 使用问号做占位符
+        if len(placeholders_list) == 0:  # 使用问号做占位符
             if return_params is None:
                 return_params = args
             if not isinstance(return_params, tuple):
@@ -221,7 +220,7 @@ class _BaseQuery:
                 return_params = kwargs['params']
             if not isinstance(return_params, dict):
                 return ()  # TODO 直接返回，后续可以加上报错
-            return handle_sql_values_by_word_placeholders(return_params, placeholders)
+            return handle_sql_values_by_word_placeholders(return_params, placeholders_list)
 
 
 class Insert(_BaseQuery):

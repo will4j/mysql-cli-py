@@ -122,6 +122,9 @@ assert batch_insert(params) == 2 # affected_rows
 ### Select
 `Select` execute select SQL and return one row.  
 `SelectMany` execute select SQL and return list of rows.
+
+support use ":word" or ? as a placeholder, but when the use of ":word" placeholder does not allow to use "?" as a placeholder
+
 Returned row is dictionary by default, you can set `dictionary=False` to return row as tuple.
 ```python
 from mysql_cli import Select, SelectMany
@@ -141,6 +144,18 @@ def select_one_return_dict(name):
 def select_many_by_name(name):
     return name
 
+@Select("select id, name, cnt from my_test where name = ? and cnt in (?) limit 1;", dictionary=False)
+def select_one_by_in(name,cnt):
+    return name,cnt
+
+@Select("select id, name, cnt from my_test where name = ? and cnt in (?) limit ? offset ?;", dictionary=False)
+def select_one_by_in_more_condition(name,cnt,limit,offset):
+    return name,cnt,limit,offset
+
+@Select("select id, name, cnt from my_test where name = :name and cnt in (:cnt) limit :limit offset :offset;", dictionary=False)
+def select_one_by_word_placeholders(params: dict):
+    return params
+
 
 row = select_one_return_tuple("hello")
 assert row == (1, 'hello', 2)
@@ -149,9 +164,24 @@ assert row == {'id': 1, 'name': 'hello', 'cnt': 2}
 rows = select_many_by_name("hello")
 assert len(rows) == 2
 assert rows[0] == {'id': 1, 'name': 'hello', 'cnt': 2}
+row = select_one_by_in("world",[2,3])
+assert row == (4, 'world', 2)
+row = select_one_by_in_more_condition("world", [2, 3],1,1)
+assert row == (5, 'world', 3)
+params = {
+    "cnt":[2,3],
+    "name":"world",
+    "limit":1,
+    "offset":1,
+}
+row1 = select_one_by_word_placeholders(params=params)
+assert row == row1
 ```
 ### Update
 `Update` execute update SQL and return affected row number.
+
+support use ":word" or ? as a placeholder, but when the use of ":word" placeholder does not allow to use "?" as a placeholder
+
 ```python
 from mysql_cli import Update
 
@@ -160,11 +190,28 @@ from mysql_cli import Update
 def update_cnt_by_name(name, cnt, limit=10):
     return cnt, name, limit
 
+@Update("update my_test set cnt = ? where name in (?) limit ?;")
+def update_cnt_by_name_and_in(name, cnt, limit=10):
+    return cnt, name, limit
+
+@Update("update my_test set cnt = :cnt where name in (:name) limit :limit;")
+def update_cnt_by_word_placeholders(params:dict):
+    return params
+
 
 assert update_cnt_by_name("update_many", 0) == 3 # affected_rows
+assert update_cnt_by_name_and_in(["update_one", "update_many"], 4, 2) == 2
+params = {
+    "name":["update_one", "update_many"],
+    "cnt":5,
+    "limit":2,
+}
+assert update_cnt_by_word_placeholders(params=params) == 2
 ```
 ### Delete
 `Delete` execute delete SQL and return affected row number.
+
+support use ":word" or ? as a placeholder, but when the use of ":word" placeholder does not allow to use "?" as a placeholder
 ```python
 from mysql_cli import Delete
 
@@ -173,8 +220,22 @@ from mysql_cli import Delete
 def delete_by_name(name, limit=10):
     return name, limit
 
+@Delete("delete from my_test where name in (?) and cnt in (?) limit ?;")
+def delete_by_in(name, cnt, limit=10):
+    return name, cnt, limit
+
+@Delete("delete from my_test where name in (:name) and cnt = :cnt limit :limit;")
+def delete_by_word_placeholders(params:dict):
+    return params
 
 assert delete_by_name("delete_many") == 2 # affected_rows
+assert delete_by_in(["delete_one"], [1,2]) == 2
+params = {
+    "cnt":2,
+    "name":["delete_one","delete_two"],
+    "limit": 1,
+}
+assert delete_by_word_placeholders(params=params) == 1
 ```
 
 ### Transactional
@@ -206,6 +267,7 @@ def transaction_rollback():
 transaction_rollback()
 assert select_one_return_dict("tx_rollback") is None
 ```
+
 
 ## References
 1. https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursorprepared.html
